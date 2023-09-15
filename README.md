@@ -20,7 +20,7 @@ Then, in your `module/build.gradle`, import the dependency
   // In module/build.gradle
   dependencies {
     ...
-    implementation("com.github.iideprived:one-tap-sign-in:1.0.0"
+    implementation("com.github.iideprived:OneTapSignIn:1.0.0"
   }
 ```
 
