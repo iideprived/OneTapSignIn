@@ -42,6 +42,10 @@ import java.util.concurrent.CancellationException
  * @param tokenOptions - A series of extra parameters for the {@code GoogleIdRequestTokenOptions} for the One Tap Client. Null values will use the default behavior of the One Tap Client for that parameter.
  * @param onError - When the One Tap Sign In Dialog fails to open, and when credentials are not returned
  * @param onCredentialReceived - When credentials are received from the One Tap Sign In Dialog. Use these credentials to sign in with Firebase, or another server.
+ * @param onFallbackAccountReceived - When the One-Tap Sign In fails, the old Google Authentication flow will be implemented. This returns a different object than the new implementation, but with similar data.
+ * @param onIdTokenReceived - Can be used to authenticate with back-ends. The functionality of this method can be implemented within {@code onCredentialReceived} or {@code onFallbackAccountReceived.
+ * @param useFallbackGoogleSignIn - Set to false if you would only like to use the One-Tap Sign In implementation, and not use the old Google methodology when it fails. This is likely to cause problems authenticating with Emulators.
+ * @param fallbackGoogleSignInOptions - Set requested scopes for the fallback Google Sign In methodolgy if the One-Tap Sign In fails
  *
  * @return OneTapSignInState - A state controller for the One Tap Client. Call ${@code state.openMenu()} when the Sign In With Google button is clicked
  * @sample {@code
