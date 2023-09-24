@@ -19,6 +19,9 @@ import com.google.android.gms.auth.api.identity.BeginSignInRequest.PasskeysReque
 import com.google.android.gms.auth.api.identity.BeginSignInRequest.PasswordRequestOptions
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInCredential
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.CancellationException
@@ -64,15 +67,36 @@ fun rememberOneTapSignInState(
     webClientId: String,
     signInRequestOptions: SignInRequestOptions = SignInRequestOptions(),
     tokenOptions: GoogleIdRequestTokenOptions = GoogleIdRequestTokenOptions(),
+    useFallbackGoogleSignIn: Boolean = true,
+    fallbackGoogleSignInOptions: GoogleSignInOptions.Builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN),
     onError: (Exception) -> Unit = {},
-    onCredentialReceived: (SignInCredential) -> Unit,
+    onCredentialReceived: (SignInCredential) -> Unit = {},
+    onFallbackAccountReceived: (GoogleSignInAccount) -> Unit = {},
+    onIdTokenReceived: (String) -> Unit
 
     ) : OneTapSignInState {
+    val context = LocalContext.current
+
     val state = remember { OneTapSignInState() }
 
     val oneTapClient = Identity.getSignInClient(LocalContext.current)
     val runner = LocalLifecycleOwner.current
 
+    val oldGoogleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = {
+            if (it.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+            GoogleSignIn.getSignedInAccountFromIntent(it.data)
+                .addOnSuccessListener { account ->
+                    onFallbackAccountReceived(account)
+                    when (account.idToken) {
+                        null -> onError(Exception("Google Account ID Token Not Found"))
+                        else -> onIdTokenReceived(account.idToken!!)
+                    }
+                }
+                .addOnFailureListener(onError)
+        }
+    )
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
         onResult = { result ->
@@ -83,7 +107,17 @@ fun rememberOneTapSignInState(
                 try {
                     onCredentialReceived(oneTapClient.getSignInCredentialFromIntent(result.data))
                 } catch (e: Exception) {
-                    onError(e)
+                    if (useFallbackGoogleSignIn && context is Activity){
+                        GoogleSignIn.getClient(context, fallbackGoogleSignInOptions
+                            .requestIdToken(webClientId)
+                            .requestEmail()
+                            .build()
+                        ).signInIntent.let { intent ->
+                            oldGoogleLauncher.launch(intent)
+                        }
+                    } else {
+                        onError(e)
+                    }
                 }
             }
         }
@@ -140,7 +174,17 @@ fun rememberOneTapSignInState(
                 ).await()
                 // Retries without filtering authorized accounts and auto-selecting
             } catch (e: Exception){
-                onError(e)
+                if (useFallbackGoogleSignIn && context is Activity){
+                    GoogleSignIn.getClient(context, fallbackGoogleSignInOptions
+                        .requestIdToken(webClientId)
+                        .requestEmail()
+                        .build()
+                    ).signInIntent.let { intent ->
+                        oldGoogleLauncher.launch(intent)
+                    }
+                } else {
+                    onError(e)
+                }
                 state.closeMenu()
                 if ( e is CancellationException) throw e
                 null
@@ -176,3 +220,7 @@ data class GoogleIdRequestTokenOptions(
     val requestVerifiedPhoneNumber: Boolean? =  null,
     val nonce: String? = null,
 )
+
+sealed class GoogleAccountInfo {
+
+}
