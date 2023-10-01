@@ -1,9 +1,15 @@
 package com.iideprived.onetapsignin
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.BeginSignInRequest.PasskeyJsonRequestOptions
@@ -104,12 +111,13 @@ fun rememberOneTapSignInState(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
         onResult = { result ->
-            if (result.resultCode != Activity.RESULT_OK) {
-                return@rememberLauncherForActivityResult
-            }
+            if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+
             runner.lifecycleScope.launch {
                 try {
-                    onCredentialReceived(oneTapClient.getSignInCredentialFromIntent(result.data))
+                    val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
+                    onCredentialReceived(credential)
+                    credential.googleIdToken?.let { onIdTokenReceived(it) } ?: onError(Exception("Google ID Token Not Found"))
                 } catch (e: Exception) {
                     if (useFallbackGoogleSignIn && context is Activity){
                         GoogleSignIn.getClient(context, fallbackGoogleSignInOptions
