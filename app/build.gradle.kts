@@ -68,7 +68,7 @@ afterEvaluate {
             create<MavenPublication>("Maven") {
                 groupId = "com.github.iideprived"
                 artifactId = "OneTapSignIn"
-                version = "1.0"
+                version = "1.1.1"
                 from(components["release"])
             }
         }
